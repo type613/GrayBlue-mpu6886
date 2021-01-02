@@ -1,9 +1,10 @@
-GrayBlue 
+GrayBlue-MPU6886_BMM150 
 ====
 
 <img src="https://github.com/naninunenoy/GrayBlue/blob/doc/doc/icon.png?raw=true" width="200" />
 
-This is M5Stack **Gray** firmware to notify 9DOF motion sensor(MPU-9250) data by **Blue**tooth Low Enagy.
+This is M5Stack **Gray** firmware to notify 9DOF motion sensor(MPU6886+BMM150) data by **Blue**tooth Low Enagy.  
+Based on GrayBlue(https://github.com/naninunenoy/GrayBlue)
 
 Therefore <img src="https://img.shields.io/badge/Gray-Blue-blue.svg?labelColor=lightGray" />.
 
@@ -15,13 +16,16 @@ Applied the notified quaternion to the virtual object with Unity.
 ## Description
 
 ### IMU
-MPU-9250 provide these data.
+MPU-6886 provide these data.
  * acceleration (xyz) [mg]
  * gyro (xyz) [deg/s]
+
+BMM150 provide these data.
  * magnetic force (xyz) [mG]
+
+Generate data.
  * quaternion (wxyz) []
 
-Quaternion is calculated from acc and gyro by DMP of MPU-9250.
 These 13(3+3+3+4) data are notified by BLE.
 
 ### Front 3 buttons
@@ -73,8 +77,12 @@ If you try to build and write to your M5Stack Gray, you need to install Platform
     - https://github.com/sparkfun/SparkFun_MPU-9250-DMP_Arduino_Library
     - [LICENSE](https://github.com/sparkfun/SparkFun_MPU-9250-DMP_Arduino_Library/blob/master/LICENSE.md)
 
-## Licence
-[MIT](https://github.com/naninunenoy/GrayBlue/blob/master/LICENSE)
-
 ## Author
+[@type613](https://github.com/type16)
+
+GrayBlue author
 [@naninunenoy](https://github.com/naninunenoy)
+
+BMM150class author
+[@omegatao](https://github.com/omegatao)
+

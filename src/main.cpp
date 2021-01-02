@@ -1,6 +1,9 @@
 #define M5STACK_MPU6886 
 
+#include <Arduino.h>
 #include <M5Stack.h>
+#include "BMM150class.h"
+#include <utility/quaternionFilters.h>
 #ifndef M5STACK_MPU6886
     #include "imu/IMU.h"
 #endif
@@ -22,13 +25,26 @@ input::ButtonCheck _button;
 float acc[3];
 float gyro[3];
 float mag[3];
+float pitch = 0.0f;
+float roll = 0.0f;
+float yaw = 0.0f;
+
 float quat[4];
+
+float temp = 0.0f;
+
+BMM150class bmm150;
+uint32_t Now = 0;
+uint32_t lastUpdate =0, firstUpdate = 0;
+float deltat = 0.0f , sum=0.0f;
 
 void setup() {
     M5.begin();
     M5.Power.begin();
 #ifdef M5STACK_MPU6886
     M5.IMU.Init();
+    bmm150.Init();
+
     for (int i=0; i<3; i++) { acc[i] = 0.0F; }
     for (int i=0; i<3; i++) { gyro[i] = 0.0F; }
     for (int i=0; i<3; i++) { mag[i] = 0.0F; }
@@ -68,15 +84,15 @@ void setup() {
         Serial.println("ble OK!");
 #endif
     } else {
-        M5.Lcd.println("ble NG!!!");
+        M5.Lcd.println("ble NG!");
 #if SERIAL_PRINT
         Serial.println("ble NG!");
 #endif
     }
 #if SERIAL_PRINT
     //Serial.begin(115200);
-    Serial.println("serial OK!!!");
-    M5.Lcd.println("serial OK!!!!");
+    Serial.println("serial OK!");
+    M5.Lcd.println("serial OK!");
 #endif
     M5.Lcd.fillScreen(BLACK);
 }
@@ -125,13 +141,36 @@ void loop() {
     ble::IMUData data;
     M5.IMU.getGyroData(&gyro[0],&gyro[1],&gyro[2]);
     M5.IMU.getAccelData(&acc[0],&acc[1],&acc[2]);
-    M5.IMU.getAhrsData(&mag[0],&mag[1],&mag[2]);
-    //TODO:quat calculate
+    bmm150.getMagnetData(&mag[0],&mag[1],&mag[2]);
+    M5.IMU.getTempData(&temp);
+
+    Now = micros();
+    deltat = ((Now - lastUpdate) / 1000000.0f);
+    lastUpdate = Now;
+
+    MadgwickQuaternionUpdate(acc[0],acc[1],acc[2],
+                            gyro[0]*DEG_TO_RAD,gyro[1]*DEG_TO_RAD,gyro[2]*DEG_TO_RAD,
+                            mag[1],mag[0],mag[2],deltat);
+
+    yaw = atan2(2.0f * (*(getQ() + 1) * *(getQ() + 2) + *getQ() *
+                                                          *(getQ() + 3)),
+              *getQ() * *getQ() + *(getQ() + 1) * *(getQ() + 1) - *(getQ() + 2) * *(getQ() + 2) - *(getQ() + 3) * *(getQ() + 3));
+    pitch = -asin(2.0f * (*(getQ() + 1) * *(getQ() + 3) - *getQ() *
+                                                            *(getQ() + 2)));
+    roll = atan2(2.0f * (*getQ() * *(getQ() + 1) + *(getQ() + 2) *
+                                                     *(getQ() + 3)),
+               *getQ() * *getQ() - *(getQ() + 1) * *(getQ() + 1) - *(getQ() + 2) * *(getQ() + 2) + *(getQ() + 3) * *(getQ() + 3));
+    pitch *= RAD_TO_DEG;
+    yaw *= RAD_TO_DEG;
+    roll *= RAD_TO_DEG;
+    yaw -= 8.5;
+ 
+    memcpy(&quat,getQ(),sizeof(float)*4);
 
     memcpy(&data.accX, &acc, sizeof(float)*3);
     memcpy(&data.gyroX, &gyro, sizeof(float)*3);
     memcpy(&data.magX, &mag, sizeof(float)*3);
-    //memcpy(&data.quatW, &quat, sizeof(float)*4);
+    memcpy(&data.quatW, getQ(), sizeof(float)*4);
     _ble.GetNineAxisCharacteristic().setValue((uint8_t*)&data, BLE_IMU_DATA_LEN);
     _ble.GetNineAxisCharacteristic().notify();
 #if SERIAL_PRINT
@@ -140,7 +179,6 @@ void loop() {
     printLcd(acc, gyro, mag, quat);
 #endif
      // device update
-    delay(1);
     M5.update();
 }
 
@@ -156,7 +194,7 @@ void printLcd(const float a[], const float g[], const float m[], const float q[]
   M5.Lcd.setCursor(0, 110);
   M5.Lcd.printf(" %5.2f   %5.2f   %5.2f   ", m[0], m[1], m[2]);
   M5.Lcd.setCursor(220, 132);
-  M5.Lcd.print(" degree");
+  M5.Lcd.print(" mag");
   M5.Lcd.setCursor(0, 154);
   M5.Lcd.print("  qw     qx     qy     qz");
   M5.Lcd.setCursor(0,  176);
